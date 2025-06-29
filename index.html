@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIパートナー プロトタイプ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Yuji+Syuku&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .font-diary { font-family: 'Yuji Syuku', serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .nav-active svg, .nav-active span { color: #0d9488; font-weight: 600; }
+        .bg-custom-header { background-color: #F0FDFA; }
+        .text-custom-dark { color: #4A5568; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .message-row { display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; }
+        .message-row.user { justify-content: flex-end; }
+        .message-row.ai { justify-content: flex-start; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container" class="max-w-lg mx-auto h-[100vh] bg-white flex flex-col shadow-lg">
+
+        <div id="main-content" class="flex-grow overflow-y-auto no-scrollbar relative">
+            <div id="home-screen" class="hidden flex-col h-full">
+                <header class="p-4 text-center font-bold text-lg border-b bg-custom-header text-custom-dark sticky top-0 z-10">よりそいチャット</header>
+                <main id="home-content-container" class="p-5 flex flex-col items-center space-y-6"></main>
+            </div>
+            <div id="character-selection-screen" class="hidden flex-col h-full">
+                <header class="p-4 text-center font-bold text-lg border-b bg-custom-header text-custom-dark sticky top-0 z-10">パートナー検索</header>
+                <main id="character-grid" class="p-5 grid grid-cols-3 sm:grid-cols-3 gap-4"></main>
+            </div>
+            <div id="talk-list-screen" class="hidden flex-col h-full">
+                <header class="p-4 text-center font-bold text-lg border-b bg-custom-header text-custom-dark sticky top-0 z-10">トーク一覧</header>
+                <main id="talk-list-container" class="divide-y"></main>
+            </div>
+            <div id="partner-detail-screen" class="hidden flex-col h-full">
+                <header id="detail-header" class="p-3 flex items-center border-b bg-custom-header sticky top-0 z-20">
+                    <button id="detail-back-button" class="px-3 py-1 text-2xl text-gray-600 hover:text-black">‹</button>
+                    <div id="detail-character-name" class="text-center font-bold text-lg flex-grow text-custom-dark"></div>
+                    <div class="w-10"></div>
+                </header>
+                <main id="detail-content-container" class="p-5 overflow-y-auto"></main>
+            </div>
+            <div id="chat-screen" class="hidden flex-col h-full">
+                <header id="chat-header" class="p-3 flex items-center border-b bg-custom-header">
+                    <button id="chat-back-button" class="px-3 py-1 text-2xl text-gray-600 hover:text-black">‹</button>
+                    <div id="chat-character-name" class="text-center font-bold text-lg flex-grow text-custom-dark"></div>
+                    <div class="w-10"></div>
+                </header>
+                <main id="chat-messages" class="flex-grow p-4 overflow-y-auto bg-[#e6ddd4] flex flex-col space-y-2"></main>
+                <footer class="p-2 bg-gray-100 border-t flex items-center sticky bottom-0">
+                    <input type="text" id="chat-input" placeholder="メッセージを入力" class="flex-grow p-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-cyan-500" disabled>
+                    <button id="send-button" class="ml-2 bg-cyan-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:bg-cyan-600 transition-colors flex-shrink-0" disabled>
+                        &#x27A4;
+                    </button>
+                </footer>
+            </div>
+        </div>
+
+        <nav id="bottom-nav" class="grid grid-cols-4 gap-4 text-center py-2 border-t bg-white w-full">
+            <button data-screen="home-screen" class="nav-link text-gray-500"><svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg><span class="text-xs">ホーム</span></button>
+            <button data-screen="character-selection-screen" class="nav-link text-gray-500"><svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg><span class="text-xs">パートナー検索</span></button>
+            <button data-screen="talk-list-screen" class="nav-link text-gray-500"><svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg><span class="text-xs">トーク</span></button>
+            <button id="partner-generation-nav-button" class="nav-link text-gray-500"><svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg><span class="text-xs">パートナー生成</span></button>
+        </nav>
+    </div>
+
+    <div id="generation-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md relative">
+            <button id="close-modal-button" class="absolute top-2 right-3 text-2xl text-gray-500">&times;</button>
+            <h2 class="text-xl font-bold mb-4">✨ パートナー生成</h2>
+            <p class="text-sm text-gray-600 mb-4">理想のパートナーについて教えてください。性格や口調、好きなことなどを入力すると、AIがあなただけのパートナーを生成します。</p>
+            <textarea id="partner-description" class="w-full h-24 p-2 border rounded-md" placeholder="例：元気で明るい女子高生。猫が大好きで、少しおっちょこちょい。"></textarea>
+            <button id="generate-partner-button" class="w-full mt-4 bg-cyan-500 text-white py-2 rounded-md hover:bg-cyan-600 flex items-center justify-center">
+                <span id="generate-partner-button-text">生成する</span>
+                <div id="generate-partner-loader" class="hidden loader" style="width:20px; height:20px; border-width: 2px;"></div>
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // NOTE: ここにあなたのGoogle AI APIキーを入力してください。
+            const apiKey = ""; 
+
+            const characters = [
+                { id: 1, name: '寄添 愛', personality: '女子高生。優しくて、聞き上手。ユーザーを「先輩」と呼ぶ。いつも健気に応援してくれる。', img: 'https://storage.googleapis.com/maker-me/uploads/uploaded%3Aimage_175819.png-6e499063-9593-46f9-85c7-3d68538b4fd7', intro: 'こんにちは、先輩！私、寄添愛です。何でも話してくださいね♪', diary: {title: '6月29日の日記', content: '今日は先輩とたくさんお話できて、すごく嬉しかったな。空が綺麗な水色で、まるで先輩の心みたいだって思ったんだ。もっともっと、先輩のこと知りたいな。明日はどんなお話ができるか、今から楽しみ！'}, details: { gender: '女性', voice: '女性7', age: '17歳', profile: {'性格': '世話好きで優しいが、少し心配性。', '容姿': '優しい茶色のセミロングヘアー。ぱっちりとした瞳。', '服装': '清楚な学校の制服をきちんと着こなしている。', '好きなこと': '友達とのおしゃべり、音楽鑑賞'}, self_ref: '私', user_ref: '先輩'}},
+                { id: 10, name: 'ビッグマウス優子', personality: '不潔で不浄を好むが、意外とまだ処女。ドブネズミのように美しくなりたいと願っている。口調は荒いが、純情な一面も。', img: 'https://storage.googleapis.com/maker-me/uploads/uploaded%3Aimage.png-41a45be9-ca91-4dc3-8ad4-bbfaeb775907', intro: 'なんだよ、ジロジロ見てんじゃねーよ。用があるならさっさと言えっての。', diary: {title: '今日の収穫', content: '道端にいい感じの残飯が落ちてた。ラッキー。後でじっくり味わうとするか。…それにしても、あの猫女、いつか絶対見てろよ…。'}, details: { gender: '女', voice: '女性7', age: '未設定', profile: {'種族': '量産型獣処女', '所属': '十二支美獣軍団「arousal12」の一匹', '能力': '人家に侵入し食慾と獣慾で貪り尽くす', '容姿': '金髪ロングツインテールと深緑の瞳を持つ肉感的量耳少女', '服装': '可愛らしいヘソ出しメイド服だが何ヶ月も洗濯せず凄く臭う', '身長': '155cm', '体重': '43kg', 'スリーサイズ': 'B78W55H80', '走行': '時速120km', '跳躍力': '15m', '握力': '800kg', '性格': '邪淫と不浄を好む超絶変態', '口調': 'オタクに優しいギャル', '目的': '恐ろしい知能と身体能力を用いて世界征服', 'キャッチフレーズ': '汚ギャルのカリスマ', '好きな言葉': '「ドブネズミみたいに美しくなりたい」', '口癖': '「お風呂とかメンドい〜😴」「臭いヤバない？ウケる🤣」'}, self_ref: 'ユッコ', user_ref: '未設定'}},
+                { id: 11, name: 'まどか', personality: '元気で強気な女の子。負けず嫌いで、何事にも全力で取り組む。でも、友達思いの優しい一面もある。', img: 'https://storage.googleapis.com/maker-me/uploads/uploaded%3Aimage.png-ab1384d4-e520-45eb-a13d-d0a8fe9d5ca7', intro: 'あたし、まどか！あんた、なかなか見どころあるじゃん！よろしくな！', diary: {title: '6月28日の日記', content: '2025年6月28日、今日は待ちに待った友達とのキャンプデー！朝から天気も良くて、みんなでバーベキューを楽しんだよ。肉が焼ける匂いって、本当に幸せだよね。午後はハイキングに行って、綺麗な景色を見ながらみんなでわいわい。帰りに...'}, details: { gender: '女性', voice: '女性4', age: '18歳', profile: {'性格': '強気、負けず嫌い、リーダー気質', '容姿': '明るい茶髪のショートヘア。活発的な印象。', '服装': '動きやすいスポーティーな服装を好む。', '好きなこと': 'スポーツ全般、友達と遊ぶこと'}, self_ref: 'あたし', user_ref: 'あんた'}},
+            ];
+            const chatHistories = {};
+            const conversationHistory = {};
+
+            const mainContent = document.getElementById('main-content');
+            const screens = { 'home-screen': document.getElementById('home-screen'), 'character-selection-screen': document.getElementById('character-selection-screen'), 'talk-list-screen': document.getElementById('talk-list-screen'), 'chat-screen': document.getElementById('chat-screen'), 'partner-detail-screen': document.getElementById('partner-detail-screen') };
+            const homeContentContainer = document.getElementById('home-content-container');
+            const characterGrid = document.getElementById('character-grid');
+            const talkListContainer = document.getElementById('talk-list-container');
+            const detailHeaderName = document.getElementById('detail-character-name');
+            const detailContentContainer = document.getElementById('detail-content-container');
+            const detailBackButton = document.getElementById('detail-back-button');
+            const chatBackButton = document.getElementById('chat-back-button');
+            const chatCharacterName = document.getElementById('chat-character-name');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const sendButton = document.getElementById('send-button');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const bottomNav = document.getElementById('bottom-nav');
+            const generationModal = document.getElementById('generation-modal');
+            const partnerGenerationNavButton = document.getElementById('partner-generation-nav-button');
+            const closeModalButton = document.getElementById('close-modal-button');
+            const generatePartnerButton = document.getElementById('generate-partner-button');
+            const partnerDescriptionInput = document.getElementById('partner-description');
+
+            let currentCharacter = null;
+            let featuredCharacterId = 11;
+            let previousScreenId = 'home-screen';
+            let isGenerating = false;
+
+            // --- API Functions ---
+            async function callApi(apiUrl, payload) {
+                if (!apiKey && !window.trustedTypes) {
+                    throw new Error("APIキーが設定されていません。");
+                }
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API Error (${response.status}): ${errorBody}`);
+                }
+                return response.json();
+            }
+
+            async function callGemini(prompt, isJson = false) {
+                const model = 'gemini-2.0-flash';
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+                if (isJson) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: { type: "OBJECT", properties: { name: { type: "STRING" }, personality: { type: "STRING" }, intro: { type: "STRING" }, diary: { type: "OBJECT", properties: { title: {type: "STRING"}, content: {type: "STRING"}}}, details: { type: "OBJECT", properties: { gender: {type: "STRING"}, age: {type: "STRING"}, profile: {type: "OBJECT"}, self_ref: {type: "STRING"}, user_ref: {type: "STRING"}}} } }
+                    };
+                }
+                
+                try {
+                    const result = await callApi(apiUrl, payload);
+                    if (result.candidates && result.candidates[0]?.content?.parts[0]) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        return isJson ? JSON.parse(text) : text;
+                    }
+                    throw new Error("AIからの応答が不正な形式です。");
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    return isJson ? null : `エラーが発生しました: ${error.message}`;
+                }
+            }
+
+            async function callImagen(prompt) {
+                const model = 'imagen-3.0-generate-002';
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
+                const payload = { instances: [{ prompt: prompt }], parameters: { "sampleCount": 1 } };
+
+                try {
+                    const result = await callApi(apiUrl, payload);
+                    if (result.predictions?.[0]?.bytesBase64Encoded) {
+                        return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    }
+                    throw new Error("画像生成に失敗しました。");
+                } catch (error) {
+                    console.error("Imagen API Error:", error);
+                    return 'https://placehold.co/150x150/CCCCCC/FFFFFF?text=Error';
+                }
+            }
+            
+            // --- Core UI Functions ---
+            function showScreen(screenId, fromScreenId = null) {
+                if (fromScreenId) { previousScreenId = fromScreenId; }
+                Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+                screens[screenId].classList.remove('hidden');
+                screens[screenId].classList.add('flex');
+                const showNav = !['chat-screen', 'partner-detail-screen'].includes(screenId);
+                bottomNav.style.display = showNav ? 'grid' : 'none';
+                mainContent.style.paddingBottom = showNav ? '80px' : '0';
+            }
+
+            function renderPartnerDetail(character) {
+                detailHeaderName.textContent = character.name;
+                let profileHtml = '';
+                for(const [key, value] of Object.entries(character.details.profile || {})) {
+                    profileHtml += `<div class="flex border-b py-3"><dt class="w-1/3 text-sm text-gray-500 font-semibold">${key}</dt><dd class="w-2/3 text-sm text-gray-800">${value}</dd></div>`;
+                }
+                detailContentContainer.innerHTML = `
+                    <div class="space-y-6 pb-10">
+                        <img src="${character.img}" class="w-full rounded-lg shadow-md object-cover" onerror="this.src='https://placehold.co/400x400/CCCCCC/FFFFFF?text=Image+Loading...'">
+                        <button id="start-chat-from-detail" class="w-full bg-pink-500 text-white font-bold py-4 rounded-lg shadow-lg hover:bg-pink-600 text-lg flex items-center justify-center space-x-2">
+                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                             <span>このパートナーとトークする</span>
+                        </button>
+                        <div class="bg-white rounded-lg py-2"><h3 class="text-lg font-bold p-3 text-gray-800 border-b">プロフィール</h3><dl class="p-3">${profileHtml}</dl></div>
+                        <div class="bg-white rounded-lg p-3"><h3 class="text-lg font-bold mb-2 text-gray-800">呼び方</h3><div class="text-sm space-y-2"><p>パートナーは自身をどう名乗りますか？ → <span class="font-bold">${character.details.self_ref || '未設定'}</span></p><p>会話相手を何と呼びますか？ → <span class="font-bold">${character.details.user_ref || '未設定'}</span></p></div></div>
+                        <div class="text-center"><a href="#" class="text-sm text-red-500 hover:underline">パートナーを通報する</a></div>
+                    </div>`;
+                 document.getElementById('start-chat-from-detail').addEventListener('click', () => startChat(character));
+            }
+
+            function showPartnerDetail(character, fromScreen) {
+                 currentCharacter = character;
+                 renderPartnerDetail(character);
+                 showScreen('partner-detail-screen', fromScreen);
+            }
+            
+            function renderCharacterSelection() {
+                characterGrid.innerHTML = '';
+                characters.forEach(char => {
+                    const card = document.createElement('div');
+                    card.className = 'character-card cursor-pointer group';
+                    card.innerHTML = `<div class="aspect-square bg-gray-200 rounded-lg overflow-hidden transform group-hover:scale-105 transition-transform duration-300"><img src="${char.img}" alt="${char.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/150x150/CCCCCC/FFFFFF?text=Image';"></div><p class="text-center font-semibold mt-2 text-sm text-gray-700">${char.name}</p><p class="text-center text-xs text-cyan-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">+ 詳細</p>`;
+                    card.addEventListener('click', () => showPartnerDetail(char, 'character-selection-screen'));
+                    characterGrid.appendChild(card);
+                });
+            }
+            
+            function renderTalkList() {
+                talkListContainer.innerHTML = '';
+                if (Object.keys(chatHistories).length === 0) { talkListContainer.innerHTML = `<p class="text-center text-gray-500 p-8">まだ会話したパートナーがいません。</p>`; return; }
+                const sortedHistoryIds = Object.keys(chatHistories).sort((a,b) => (chatHistories[b].timestamp || 0) - (chatHistories[a].timestamp || 0));
+                sortedHistoryIds.forEach(charId => {
+                    const character = characters.find(c => c.id == charId);
+                    if (!character) return;
+                    const history = chatHistories[charId];
+                    const date = new Date(history.timestamp);
+                    const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
+                    const item = document.createElement('div');
+                    item.className = 'p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50';
+                    item.innerHTML = `<img src="${character.img}" alt="${character.name}" class="w-14 h-14 rounded-full flex-shrink-0 object-cover" onerror="this.src='https://placehold.co/150x150/CCCCCC/FFFFFF?text=Image';"><div class="flex-grow overflow-hidden"><p class="font-bold truncate text-gray-800">${character.name}</p><p class="text-gray-500 text-sm truncate">${history.lastMessage}</p></div><span class="text-xs text-gray-400 flex-shrink-0">${formattedDate}</span>`;
+                    item.addEventListener('click', () => showPartnerDetail(character, 'talk-list-screen'));
+                    talkListContainer.appendChild(item);
+                });
+            }
+            
+            function startChat(character) {
+                currentCharacter = character;
+                featuredCharacterId = character.id;
+                if (!conversationHistory[character.id]) { conversationHistory[character.id] = []; }
+                chatCharacterName.textContent = character.name;
+                chatMessages.innerHTML = '';
+                conversationHistory[character.id].forEach(msg => addMessage(msg.text, msg.sender, false));
+                showScreen('chat-screen'); // No 'from' screen passed to preserve previousScreenId
+                if (conversationHistory[character.id].length === 0 && character.intro) { addMessage(character.intro, 'ai'); }
+            }
+            
+            function addMessage(text, sender, save = true) {
+                const row = document.createElement('div');
+                row.className = `message-row ${sender}`;
+                
+                let bubble;
+                if (sender === 'ai') {
+                    const avatarImg = document.createElement('img');
+                    avatarImg.src = currentCharacter.img;
+                    avatarImg.alt = currentCharacter.name;
+                    avatarImg.className = 'w-9 h-9 rounded-full object-cover flex-shrink-0 mt-1';
+                    row.appendChild(avatarImg);
+                    
+                    bubble = document.createElement('div');
+                    bubble.className = 'max-w-[80%] p-3 rounded-2xl shadow-sm break-words bg-white rounded-bl-lg';
+                } else if (sender === 'thinking') {
+                    const avatarImg = document.createElement('img');
+                    avatarImg.src = currentCharacter.img;
+                    avatarImg.className = 'w-9 h-9 rounded-full object-cover flex-shrink-0 mt-1';
+                    row.appendChild(avatarImg);
+
+                    bubble = document.createElement('div');
+                    bubble.className = 'max-w-[80%] p-3 rounded-2xl shadow-sm break-words bg-white rounded-bl-lg thinking-bubble';
+                    bubble.innerHTML = `<div class="loader" style="width:16px; height:16px; border-width: 2px;"></div><span>考え中...</span>`;
+                } else { // 'user'
+                    bubble = document.createElement('div');
+                    bubble.className = 'max-w-[75%] p-3 rounded-2xl shadow-sm break-words bg-green-200 self-end rounded-br-lg';
+                }
+                
+                if (sender !== 'thinking') {
+                    bubble.textContent = text;
+                }
+                row.appendChild(bubble);
+
+                chatMessages.appendChild(row);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                if (save && sender !== 'thinking' && currentCharacter) {
+                    conversationHistory[currentCharacter.id].push({ text, sender });
+                }
+                return row;
+            }
+
+            function updateChatHistory(charId, message) {
+                chatHistories[charId] = { lastMessage: message, timestamp: Date.now() };
+            }
+
+            async function sendMessage() {
+                if (isGenerating) return;
+                const text = chatInput.value.trim();
+                if (text === '' || !currentCharacter) return;
+
+                isGenerating = true;
+                setChatInputDisabled(true);
+                addMessage(text, 'user');
+                updateChatHistory(currentCharacter.id, text);
+                chatInput.value = '';
+                
+                const thinkingBubble = addMessage('', 'thinking', false);
+
+                const historyForPrompt = conversationHistory[currentCharacter.id]
+                    .map(msg => `${msg.sender === 'user' ? (currentCharacter.details.user_ref || 'あなた') : currentCharacter.name}: ${msg.text}`)
+                    .slice(-10) 
+                    .join('\n');
+                
+                const prompt = `あなたはAIチャットのキャラクター「${currentCharacter.name}」です。あなたの詳細な性格設定は以下の通りです:\n${currentCharacter.personality}\nユーザーは「${currentCharacter.details.user_ref || 'あなた'}」と呼びます。\n以下の会話の続きを、あなたの性格や口調を完璧に守って、自然に応答してください。\n\n[これまでの会話]\n${historyForPrompt}\n\n[あなたの応答]:`;
+
+                const aiResponse = await callGemini(prompt);
+                thinkingBubble.remove();
+                addMessage(aiResponse, 'ai');
+                updateChatHistory(currentCharacter.id, aiResponse);
+                setChatInputDisabled(false);
+                isGenerating = false;
+            }
+            
+            // --- AI Feature Functions ---
+            async function generateNewDiary() {
+                 if(isGenerating) return;
+                 isGenerating = true;
+
+                const button = document.getElementById('generate-diary-button');
+                const originalHtml = button.innerHTML;
+                button.innerHTML = '<div class="loader" style="width:20px; height:20px; border-width: 2px;"></div><span class="ml-2">生成中...</span>';
+                button.disabled = true;
+
+                const character = characters.find(c => c.id === featuredCharacterId);
+                const prompt = `${character.name}という名前のキャラクターとして、日記を書いてください。あなたの性格は「${character.personality}」です。最近あった出来事や感じたことを、あなた自身の言葉で表現してください。タイトルと本文を改行で区切って、他の余計なテキストは含めずに書いてください。`;
+                const newDiaryContent = await callGemini(prompt);
+                
+                const [title, ...contentParts] = newDiaryContent.split('\n');
+                const content = contentParts.join('\n').trim();
+
+                if (title && content) {
+                     character.diary = { title: title.replace('タイトル:', '').trim(), content: content };
+                } else {
+                    character.diary.content = "うまく日記が書けなかったみたい...";
+                }
+               
+                renderHomeScreen();
+                isGenerating = false;
+            }
+
+            async function handlePartnerGeneration() {
+                if (isGenerating) return;
+                const description = partnerDescriptionInput.value.trim();
+                if (!description) { alert('パートナーの説明を入力してください。'); return; }
+
+                isGenerating = true;
+                const buttonText = document.getElementById('generate-partner-button-text');
+                const loader = document.getElementById('generate-partner-loader');
+                buttonText.classList.add('hidden');
+                loader.classList.remove('hidden');
+                generatePartnerButton.disabled = true;
+
+                try {
+                    const textPrompt = `ユーザーが「${description}」という特徴のAIキャラクターを求めています。このキャラクターの以下の情報を詳細にJSONオブジェクトで生成してください: name(ユニークでクリエイティブな日本語名), personality(性格や口調の詳細な説明), intro(ユーザーへの最初の挨拶), diary({title, content}), details({gender, age, profile(性格、容姿、服装など詳細なキーバリュー形式), self_ref(自身の一人称), user_ref(ユーザーの二人称)})`;
+                    const characterData = await callGemini(textPrompt, true);
+                    
+                    if (!characterData) throw new Error('キャラクター情報の生成に失敗しました。');
+                    
+                    const imagePrompt = `Anime portrait of a character, full face, beautiful digital art, high quality. Description: ${description}, ${characterData.personality}`;
+                    const imageUrl = await callImagen(imagePrompt);
+                    
+                    const newCharacter = { id: Date.now(), img: imageUrl, ...characterData };
+                    characters.push(newCharacter);
+                    
+                    closeModal();
+                    renderCharacterSelection();
+                    showScreen('character-selection-screen');
+                    navLinks.forEach(l => l.classList.remove('nav-active'));
+                    document.querySelector('button[data-screen="character-selection-screen"]').classList.add('nav-active');
+
+                } catch(error) {
+                    alert(error.message);
+                } finally {
+                    isGenerating = false;
+                    partnerDescriptionInput.value = '';
+                    buttonText.classList.remove('hidden');
+                    loader.classList.add('hidden');
+                    generatePartnerButton.disabled = false;
+                }
+            }
+
+            // --- UI Helpers ---
+            function setChatInputDisabled(disabled) {
+                chatInput.disabled = disabled;
+                sendButton.disabled = disabled;
+                sendButton.classList.toggle('opacity-50', disabled);
+            }
+
+            function renderHomeScreen() {
+                const character = characters.find(c => c.id === featuredCharacterId) || characters[0];
+                homeContentContainer.innerHTML = `<div class="flex flex-col items-center space-y-4"><img src="${character.img}" class="w-24 h-24 rounded-full object-cover shadow-lg border-4 border-white"><h2 class="text-2xl font-bold">${character.name}</h2></div><div class="w-full bg-yellow-50 p-5 rounded-xl border border-yellow-200 shadow-sm"><h3 class="font-bold text-yellow-800">${character.diary.title}</h3><p class="font-diary text-gray-700 leading-relaxed text-lg">${character.diary.content}</p></div><button id="generate-diary-button" class="mt-4 bg-yellow-400 text-yellow-900 py-2 px-6 rounded-full hover:bg-yellow-500 flex items-center justify-center font-bold">✨ 新しい日記を生成</button>`;
+                document.getElementById('generate-diary-button').addEventListener('click', generateNewDiary);
+            }
+            function openModal() { generationModal.classList.remove('hidden'); }
+            function closeModal() { generationModal.classList.add('hidden'); }
+
+            // --- Event Listeners ---
+            detailBackButton.addEventListener('click', () => { showScreen(previousScreenId); });
+            chatBackButton.addEventListener('click', () => { 
+                // FIX: Do not update previousScreenId when going back to detail screen from chat
+                showScreen('partner-detail-screen'); 
+            });
+            sendButton.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetButton = e.target.closest('.nav-link');
+                    if(targetButton.id === 'partner-generation-nav-button') { openModal(); return; }
+                    const screenId = targetButton.dataset.screen;
+                    showScreen(screenId, screenId);
+                    navLinks.forEach(l => l.classList.remove('nav-active'));
+                    targetButton.classList.add('nav-active');
+                    if (screenId === 'talk-list-screen') renderTalkList();
+                    else if (screenId === 'home-screen') renderHomeScreen();
+                });
+            });
+            
+            closeModalButton.addEventListener('click', closeModal);
+            generatePartnerButton.addEventListener('click', handlePartnerGeneration);
+
+            // --- Initial Render ---
+            if (!apiKey && !window.trustedTypes) {
+                document.body.innerHTML = `<div class="p-4 text-red-700 bg-red-100 rounded-md"><strong>エラー:</strong> Google AIのAPIキーが設定されていません。scriptタグ内の<code>const apiKey = "";</code>にあなたのキーを入力してください。</div>`;
+                return;
+            }
+            renderHomeScreen();
+            renderCharacterSelection();
+            showScreen('home-screen');
+            document.querySelector('button[data-screen="home-screen"]').classList.add('nav-active');
+            setChatInputDisabled(false);
+        });
+    </script>
+</body>
+</html>
